@@ -1,0 +1,129 @@
+# R Code part 1
+
+library("NLP")
+library("tm")
+library("SnowballC")
+library("wordcloud")
+library("RColorBrewer")
+library("dplyr")
+library("tidyr")
+suppressMessages(library(ggplot2))
+
+# read data
+data <- read.csv(file="/Users/nayanathomas/Desktop/UTD/Sem4/BigData/Project/dataset/movies.csv", header=TRUE, sep=",", stringsAsFactors = FALSE)
+#summary of data
+names(data)
+summary(data)
+View(data)
+nrow(data)
+dataset = na.omit(data)
+nrow(dataset)
+View(dataset)
+
+#analysis of raw data
+hist(dataset$score, 
+     main="Distribution of Review score", 
+     xlab="score", 
+     ylab = "number of reviews",
+     col="red",
+     las=1, 
+     breaks=5)
+
+
+datasetNew = dataset %>% separate(helpfulness, c('helpfulnessNum', 'helpfulnessDenom'), sep="/")
+View(datasetNew)
+
+typeof(datasetNew$helpfulnessDenom)
+datasetNew$helpfulnessDenom <- as.numeric(datasetNew$helpfulnessDenom)
+datasetNew$helpfulnessNum <- as.numeric(datasetNew$helpfulnessNum)
+
+#creating new column with the helpfulness value between zero and 1.
+datasetNew$helpulness <- ifelse(datasetNew$helpfulnessDenom != 0, datasetNew$helpfulnessNum / datasetNew$helpfulnessDenom, datasetNew$helpfulnessNum)
+View(datasetNew)
+
+datasetNew$helpfulness <- as.numeric(datasetNew$helpfulness)
+
+typeof(datasetNew$helpulness)
+
+#analysis of raw data
+hist(datasetNew$helpulness, 
+     main="Histogram of helpfulness", 
+     xlab="score", 
+     ylab = "number of reviews",
+     col="steel blue",
+     las=1, 
+     breaks=5)
+
+
+table(datasetNew$productId)
+
+barplot(table(datasetNew$productId),xlab="Movie Id",ylab="Number of reviews",col="blue",
+        main="Top movies",border="red")
+
+plot(datasetNew$productId)
+
+
+reorder_size <- function(x) {
+  factor(x, levels = names(sort(table(x), decreasing=T)))
+}
+
+#how to plot top 50 only
+ggplot(datasetNew, aes(x=reorder_size(datasetNew$productId))) + geom_bar() + ggtitle("Products with highest number of reviews") +
+  xlab("Products") + ylab("Number of reviews")
+
+ggplot(datasetNew, aes(x=reorder_size(datasetNew$userId))) + geom_bar() + ggtitle("Products with highest number of reviews") +
+  xlab("User Id") + ylab("Number of reviews")
+
+ggplot(datasetNew, aes(x=reorder_size(datasetNew$userId)), y=datasetNew$helpulness) + geom_bar() + ggtitle("Products with highest number of reviews") +
+  xlab("User Id") + ylab("Helpfulness")
+
+
+corpus_review=Corpus(VectorSource(dataset$text))
+
+
+
+
+
+
+
+
+
+
+#R Code part 2
+
+library("RColorBrewer")
+library("NLP")
+library("SnowballC")
+library("wordcloud")
+library("tm")
+
+dataSource <- readLines(file.choose())
+
+
+dataFile <- Corpus(VectorSource(dataSource))
+
+inspect(dataFile)
+
+contentPattern <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
+dataFile <- tm_map(dataFile, contentPattern, "/")
+dataFile <- tm_map(dataFile, contentPattern, "@")
+dataFile <- tm_map(dataFile, contentPattern, "\\|")
+
+
+dataFile <- tm_map(dataFile, content_transformer(tolower))
+dataFile <- tm_map(dataFile, removeNumbers)
+dataFile <- tm_map(dataFile, removeWords, stopwords("english"))
+dataFile <- tm_map(dataFile, removeWords, c("random1", "random2")) 
+dataFile <- tm_map(dataFile, removePunctuation)
+dataFile <- tm_map(dataFile, stripWhitespace)
+
+termDocMatrix <- TermDocumentMatrix(dataFile)
+matrixVar <- as.matrix(termDocMatrix)
+sortMatrixVar <- sort(rowSums(matrixVar),decreasing=TRUE)
+dataFrame <- data.frame(word = names(sortMatrixVar),freq=sortMatrixVar)
+head(dataFrame, 10)
+
+set.seed(1234)
+wordcloud(max.words=200,freq = dataFrame$freq,words = dataFrame$word,  min.freq = 1,
+           random.order=FALSE,  
+          colors=brewer.pal(8, "Dark2"),rot.per=0.35)
